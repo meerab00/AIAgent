@@ -1,51 +1,49 @@
 
 import os
 import streamlit as st
-from langchain_groq import ChatGroq
+from groq import Groq
 
-# ---------------------------
 # API KEY
-# ---------------------------
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error("GROQ_API_KEY missing in environment variables")
+    st.error("GROQ_API_KEY missing")
     st.stop()
 
-# ---------------------------
-# LLM
-# ---------------------------
-llm = ChatGroq(
-    api_key=GROQ_API_KEY,
-    model="llama3-70b-8192"
-)
+client = Groq(api_key=GROQ_API_KEY)
 
 # ---------------------------
-# Simple AI Function
+# AI RESPONSE FUNCTION
 # ---------------------------
-def get_response(question):
-    prompt = f"""
-    You are a helpful AI assistant.
-    Answer clearly and simply.
+def get_response(user_input):
+    try:
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful AI assistant."
+                },
+                {
+                    "role": "user",
+                    "content": user_input
+                }
+            ]
+        )
+        return response.choices[0].message.content
 
-    User Question: {question}
-    """
-    response = llm.invoke(prompt)
-    return response.content
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 # ---------------------------
-# Streamlit UI
+# STREAMLIT UI
 # ---------------------------
-st.set_page_config(page_title="AI Agent", page_icon="🤖")
-
 st.title("🤖 Groq AI Assistant")
 
 user_input = st.text_input("Ask anything:")
 
 if st.button("Run"):
     if user_input:
-        with st.spinner("Thinking..."):
-            result = get_response(user_input)
-        st.success(result)
+        st.write(get_response(user_input))
     else:
-        st.warning("Please enter a question")
+        st.warning("Enter a question")
