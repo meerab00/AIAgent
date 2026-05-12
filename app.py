@@ -2,9 +2,6 @@
 import os
 import streamlit as st
 from langchain_groq import ChatGroq
-from langchain_core.tools import tool
-from langchain.agents import create_react_agent, AgentExecutor
-from langchain import hub
 
 # ---------------------------
 # API KEY
@@ -12,7 +9,7 @@ from langchain import hub
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error("GROQ_API_KEY missing")
+    st.error("GROQ_API_KEY missing in environment variables")
     st.stop()
 
 # ---------------------------
@@ -24,40 +21,31 @@ llm = ChatGroq(
 )
 
 # ---------------------------
-# Tool
+# Simple AI Function
 # ---------------------------
-@tool
-def calculator(query: str) -> str:
-    """Simple calculator tool"""
-    try:
-        return str(eval(query))
-    except:
-        return "Invalid expression"
+def get_response(question):
+    prompt = f"""
+    You are a helpful AI assistant.
+    Answer clearly and simply.
 
-tools = [calculator]
-
-# ---------------------------
-# Prompt (ReAct Agent)
-# ---------------------------
-prompt = hub.pull("hwchase17/react")
-
-# ---------------------------
-# Agent
-# ---------------------------
-agent = create_react_agent(llm, tools, prompt)
-
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    User Question: {question}
+    """
+    response = llm.invoke(prompt)
+    return response.content
 
 # ---------------------------
 # Streamlit UI
 # ---------------------------
-st.title("🤖 AI Agent (Groq + LangChain)")
+st.set_page_config(page_title="AI Agent", page_icon="🤖")
 
-user_input = st.text_input("Enter query:")
+st.title("🤖 Groq AI Assistant")
+
+user_input = st.text_input("Ask anything:")
 
 if st.button("Run"):
     if user_input:
-        result = agent_executor.invoke({"input": user_input})
-        st.write(result["output"])
+        with st.spinner("Thinking..."):
+            result = get_response(user_input)
+        st.success(result)
     else:
-        st.warning("Enter something")
+        st.warning("Please enter a question")
