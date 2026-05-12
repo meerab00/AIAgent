@@ -1,65 +1,63 @@
+
 import os
 import streamlit as st
 from langchain_groq import ChatGroq
-from langchain.agents import initialize_agent, AgentType
-from langchain.tools import Tool
+from langchain_core.tools import tool
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain import hub
 
 # ---------------------------
-# GROQ API KEY (Set in Streamlit secrets or env)
+# API KEY
 # ---------------------------
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error("Please set GROQ_API_KEY in environment variables")
+    st.error("GROQ_API_KEY missing")
     st.stop()
 
 # ---------------------------
-# LLM (Groq Model)
+# LLM
 # ---------------------------
 llm = ChatGroq(
     api_key=GROQ_API_KEY,
-    model="llama3-70b-8192"  # stable current model
+    model="llama3-70b-8192"
 )
 
 # ---------------------------
-# Simple Tool Example (Calculator Tool)
+# Tool
 # ---------------------------
-def calculator_tool(query):
+@tool
+def calculator(query: str) -> str:
+    """Simple calculator tool"""
     try:
         return str(eval(query))
     except:
-        return "Invalid calculation"
+        return "Invalid expression"
 
-tools = [
-    Tool(
-        name="Calculator",
-        func=calculator_tool,
-        description="Use for math calculations"
-    )
-]
+tools = [calculator]
 
 # ---------------------------
-# AI Agent
+# Prompt (ReAct Agent)
 # ---------------------------
-agent = initialize_agent(
-    tools=tools,
-    llm=llm,
-    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
-)
+prompt = hub.pull("hwchase17/react")
+
+# ---------------------------
+# Agent
+# ---------------------------
+agent = create_react_agent(llm, tools, prompt)
+
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 # ---------------------------
 # Streamlit UI
 # ---------------------------
-st.set_page_config(page_title="AI Agent", page_icon="🤖")
-st.title("🤖 My AI Agent (LangChain + Groq)")
+st.title("🤖 AI Agent (Groq + LangChain)")
 
-user_input = st.text_input("Enter your query:")
+user_input = st.text_input("Enter query:")
 
-if st.button("Run Agent"):
+if st.button("Run"):
     if user_input:
-        with st.spinner("Thinking..."):
-            response = agent.run(user_input)
-        st.success(response)
+        result = agent_executor.invoke({"input": user_input})
+        st.write(result["output"])
     else:
-        st.warning("Please enter a query")
+        st.warning("Enter something")
